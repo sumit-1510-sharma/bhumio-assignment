@@ -1,9 +1,10 @@
+import React, { useState } from "react";
 import BottomComp from "../components/BottomComp";
 import StatGrid from "../components/StatGrid";
-import React from "react";
 
 const ThirdPage = () => {
-  const statGridData = [
+  // ✅ Use state for editable data
+  const [statGridData, setStatGridData] = useState([
     {
       number: "3a",
       heading: ["Average Listing Price", "# Active Agents"],
@@ -32,7 +33,39 @@ const ThirdPage = () => {
         { label: "Single Agent Deal", subLabel: "(Buyer)", value: "94%" },
       ],
     },
-  ];
+  ]);
+
+  // ✅ Update nested value by path
+  const handleStatGridChange = (number, path, newValue) => {
+    setStatGridData((prev) =>
+      prev.map((item) => {
+        if (item.number !== number) return item;
+
+        const updatedItem = JSON.parse(JSON.stringify(item)); // deep clone
+        let temp = updatedItem;
+        for (let i = 0; i < path.length - 1; i++) temp = temp[path[i]];
+        temp[path[path.length - 1]] = newValue;
+
+        return updatedItem;
+      })
+    );
+  };
+
+  // ✅ Download latest state as JSON
+  const handleDownload = () => {
+    const dataToDownload = { statGridData };
+    const jsonStr = JSON.stringify(dataToDownload, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "thirdpage-data.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="flex flex-col items-center">
@@ -40,18 +73,25 @@ const ThirdPage = () => {
         Market Analytics
       </h2>
 
-      <StatGrid
-        key={statGridData[0].number}
-        items={statGridData[0]}
-        number={statGridData[0].number}
-      />
-      <StatGrid
-        key={statGridData[1].number}
-        items={statGridData[1]}
-        number={statGridData[1].number}
-      />
+      {statGridData.map((gridItem) => (
+        <StatGrid
+          key={gridItem.number}
+          items={gridItem}
+          number={gridItem.number}
+          onChange={(path, value) =>
+            handleStatGridChange(gridItem.number, path, value)
+          }
+        />
+      ))}
 
       <BottomComp number="3" />
+
+      <button
+        onClick={handleDownload}
+        className="mt-6 px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+      >
+        Download Page Data (JSON)
+      </button>
     </div>
   );
 };

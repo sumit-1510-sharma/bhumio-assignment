@@ -1,29 +1,34 @@
+import React, { useState } from "react";
 import BottomComp from "../components/BottomComp";
 import StatGrid from "../components/StatGrid";
-import React, { useState } from "react";
 
 const FirstPage = () => {
-  // Initial values for Sell Side, Dual Side, Buy Side
+  // Editable stats for 1a
   const [stats, setStats] = useState([
     { label: "🏠 # Sell Side", value: 67 },
     { label: "⚖ # Dual Side", value: 38 },
     { label: "🔑 # Buy Side", value: 37 },
   ]);
 
-  // Calculate closed deal as sum of the three
+  // Calculate closed deal
   const closedDeal = stats.reduce((sum, s) => sum + Number(s.value), 0);
 
-  // Handler for input change
-  const handleStatChange = (idx, newValue) => {
-    // Only allow numbers >= 0
-    const val = Math.max(0, parseInt(newValue) || 0);
-    setStats((prev) =>
-      prev.map((s, i) => (i === idx ? { ...s, value: val } : s))
+  // Nested updater helper
+  const updateNestedValue = (itemNumber, path, newValue) => {
+    setStatGridData((prev) =>
+      prev.map((item) => {
+        if (item.number !== itemNumber) return item;
+        const updatedItem = { ...item };
+        let temp = updatedItem;
+        for (let i = 0; i < path.length - 1; i++) temp = temp[path[i]];
+        temp[path[path.length - 1]] = newValue;
+        return updatedItem;
+      })
     );
   };
 
-  // Prepare statGridData for 1b and 1c (unchanged)
-  const statGridData = [
+  // Editable StatGrid data (1b, 1c)
+  const [statGridData, setStatGridData] = useState([
     {
       number: "1b",
       heading: ["⏳ Pending", "📢 Active"],
@@ -43,13 +48,36 @@ const FirstPage = () => {
         { label: "📈 Avg. Sold Price", value: "$517K" },
       ],
     },
-  ];
+  ]);
 
-  // Prepare data for pie chart (to be passed to BottomComp)
   const pieData = stats.map((s) => ({
     name: s.label.replace("# ", ""), // cleaner legend
     value: Number(s.value),
   }));
+
+  // Handler for downloading JSON
+  const handleDownload = () => {
+    const dataToDownload = { closedDeal, stats, statGridData };
+    const jsonStr = JSON.stringify(dataToDownload, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "dashboard-data.json";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Handler for 1a stats inputs
+  const handleStatChange = (idx, newValue) => {
+    const val = Math.max(0, parseInt(newValue) || 0);
+    setStats((prev) =>
+      prev.map((s, i) => (i === idx ? { ...s, value: val } : s))
+    );
+  };
 
   return (
     <div className="flex flex-col items-center">
@@ -57,11 +85,11 @@ const FirstPage = () => {
         Brokerage Dashboard: Sterling Real Estate Group
       </h2>
 
-      {/* Editable StatGrid for 1a */}
+      {/* Editable 1a */}
       <div className="w-full max-w-[80%] mb-6 border rounded-xl shadow bg-white">
         <div className="p-4 text-center border-b">
           <h3 className="font-bold text-lg">💰 Closed Deal</h3>
-          <div className="text-2xl font-bold">{`$69M`}</div>
+          <div className="text-2xl font-bold">{`$${closedDeal}M`}</div>
           <p className="text-sm">(100% allocated to Primary Agent)</p>
         </div>
         <div className="grid grid-cols-4 divide-x">
@@ -84,20 +112,25 @@ const FirstPage = () => {
         </div>
       </div>
 
-      {/* StatGrid for 1b */}
-      <StatGrid
-        key={statGridData[0].number}
-        items={statGridData[0]}
-        number={statGridData[0].number}
-      />
-      {/* StatGrid for 1c */}
-      <StatGrid
-        key={statGridData[1].number}
-        items={statGridData[1]}
-        number={statGridData[1].number}
-      />
+      {/* StatGrid 1b & 1c */}
+      {statGridData.map((item) => (
+        <StatGrid
+          key={item.number}
+          items={item}
+          number={item.number}
+          onChange={(path, val) => updateNestedValue(item.number, path, val)}
+        />
+      ))}
 
       <BottomComp closedDeal={closedDeal} number="1" pieData={pieData} />
+
+      {/* Download JSON */}
+      <button
+        onClick={handleDownload}
+        className="mt-8 px-6 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition"
+      >
+        Download Page Data (JSON)
+      </button>
     </div>
   );
 };
